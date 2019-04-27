@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/IRMooBear/ansible.rvm_ruby_passenger.svg?branch=master)](https://travis-ci.org/IRMooBear/ansible.rvm_ruby_passenger)
+
 RVM Ruby Passenger
 =========
 Compile the passenger dynamic module for nginx after rvm.ruby has installed ruby.
