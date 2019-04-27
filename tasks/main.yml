@@ -1,0 +1,35 @@
+---
+# tasks file for rvm-ruby-passenger
+- name: get passenger nginx version
+  become: no
+  command: /usr/sbin/nginx -v
+  register: passenger_get_nginx_version
+- name: set passenger nginx version
+  set_fact:
+    passenger_nginx_version: "{{ passenger_get_nginx_version.stderr[21:] }}"
+- name: check passenger
+  stat:
+    path: /usr/local/rvm/gems/ruby-{{ ruby_version }}/bin/passenger
+  register: passenger_check
+- import_tasks: install_passenger.yml
+  when: not passenger_check.stat.exists
+- name: check passenger nginx module exists
+  stat:
+    path: "{{ passenger_config[ansible_os_family].install_dir }}/ngx_http_passenger_module.so"
+  register: passenger_nginx_module_check
+- import_tasks: compile_passenger_nginx_module.yml
+  when: not passenger_nginx_module_check.stat.exists
+- name: get passenger root
+  become: no
+  command: bash -lc "rvm use {{ ruby_version }} && passenger-config --root"
+  register: passenger_root
+- name: insert passenger nginx config
+  become: yes
+  template:
+    src: passenger.conf.ini
+    dest: /etc/nginx/conf.d/passenger.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - restart nginx

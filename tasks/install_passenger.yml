@@ -1,0 +1,23 @@
+---
+- name: passenger export rvmsudo_secure_path to bashrc
+  become: yes
+  blockinfile:
+    dest: "{{ passenger_config[ansible_os_family].bashrc_path }}"
+    marker: "# {mark} RVM RUBY PASSENGER ANSIBLE MANAGED BLOCK"
+    block: |
+      export rvmsudo_secure_path=1
+      export PATH=$PATH:/usr/local/rvm/bin
+- name: passenger use rvm rubies {{ ruby_version }}
+  become: no
+  command: bash -lc "rvm use {{ ruby_version }} && rvmsudo rvm gemset use global && rvmsudo gem install passenger"
+  environment:
+    rvmsudo_secure_path: 1
+- name: passenger add users to rvm group
+  become: yes
+  user:
+    name: "{{ item }}"
+    groups: rvm
+    append: yes
+  with_items:
+    - root
+    - "{{ ansible_user }}"

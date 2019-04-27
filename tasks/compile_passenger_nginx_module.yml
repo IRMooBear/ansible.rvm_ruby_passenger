@@ -1,0 +1,49 @@
+---
+- name: get nginx source
+  become: yes
+  unarchive:
+    src: https://nginx.org/download/nginx-{{ passenger_nginx_version }}.tar.gz
+    dest: /usr/local/src
+    remote_src: yes
+    owner: "{{ ansible_user }}"
+- name: get nginx configuration
+  command: /usr/sbin/nginx -V
+  register: passenger_nginx_configuration
+- name: auto configure passenger nginx module
+  become: yes
+  command: bash -lc "rvm use {{ ruby_version }} && ./configure --add-dynamic-module=$(passenger-config --nginx-addon-dir) {{ passenger_nginx_configuration.stderr_lines[4][20:] }}"
+  args:
+    chdir: /usr/local/src/nginx-{{ passenger_nginx_version }}
+  when: passenger_nginx_configure == ""
+- name: manual configure nginx passenger module
+  become: yes
+  command: bash -lc "rvm use {{ ruby_version }} && ./configure --add-dynamic-module=$(passenger-config --nginx-addon-dir) {{ passenger_nginx_configure }}"
+  args:
+    chdir: /usr/local/src/nginx-{{ passenger_nginx_version }}
+  when: passenger_nginx_configure != ""
+- name: make passenger module
+  become: yes
+  make:
+    target: modules
+    params:
+      MAKEFLAGS: -j{{ compile_threads | default(1) }}
+      NUM_THREADS: "{{ compile_threads | default(1) }}"
+  args:
+    chdir: /usr/local/src/nginx-{{ passenger_nginx_version }}
+- name: copy passenger module
+  become: yes
+  copy:
+    src: /usr/local/src/nginx-{{ passenger_nginx_version}}/objs/ngx_http_passenger_module.so
+    dest: "{{ passenger_config[ansible_os_family].install_dir }}"
+    owner: root
+    group: root
+    mode: 0644
+    remote_src: true
+- name: insert passenger nginx module
+  become: yes
+  template:
+    src: passenger.conf.module.ini
+    dest: /etc/nginx/modules-enabled/50-mod-http-passenger.conf
+    owner: root
+    group: root
+    mode: 0644
